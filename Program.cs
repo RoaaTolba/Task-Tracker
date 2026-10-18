@@ -26,9 +26,12 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 
-app.MapGet("/tasks", async (TaskDbContext context) =>
+app.MapGet("/tasks", async (TaskDbContext context, ILogger<Program> logger) =>
 {
+    logger.LogInformation("Getting all tasks.");
     var tasks = await context.Tasks.AsNoTracking().ToListAsync();
+
+    logger.LogInformation("Retrieved {TaskCount} tasks.", tasks.Count);
     return Results.Ok(tasks);
 });
 
@@ -39,11 +42,12 @@ app.MapGet("/tasks/{id:int}", async (int id, TaskDbContext context) =>
     return tasks is null ? Results.NotFound() : Results.Ok(tasks);
 });
 
-app.MapPost("/tasks",async(CreateTaskRequest request , TaskDbContext context) =>
+app.MapPost("/tasks", async (CreateTaskRequest request, TaskDbContext context, ILogger<Program> logger) =>
 {
-    if (string.IsNullOrWhiteSpace(request.Title))
+    if (string.IsNullOrWhiteSpace(request.Title)){
+        logger.LogWarning("Task Creation rejected because the title waws empty.");
         return Results.BadRequest(new { message = "Title is required." });
-
+}
     var task = new TaskItem
     {
         Title = request.Title.Trim(),
@@ -53,6 +57,7 @@ app.MapPost("/tasks",async(CreateTaskRequest request , TaskDbContext context) =>
     };
     context.Tasks.Add(task);
     await context.SaveChangesAsync();
+    logger.LogInformation("Created task {TaskId}.", task.Id);
 
     return Results.Created($"/tasks/{task.Id}", task);
 });
